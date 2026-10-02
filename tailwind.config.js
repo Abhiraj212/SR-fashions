@@ -1,0 +1,1 @@
+export default {content:['./index.html','./src/**/*.{ts,tsx}'],theme:{extend:{colors:{cream:'#FBF7F0',ink:'#2A1F1A',gold:'#A67C2E',plum:'#4A1F2E',line:'#E6DCC8'},fontFamily:{display:['"Cormorant Garamond"',"serif"],body:['Mulish','sans-serif']}}}};
