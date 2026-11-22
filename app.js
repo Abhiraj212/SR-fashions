@@ -129,5 +129,22 @@ async function boot(){
   profile=data;shell();await renderPage();
 }
 supabase.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT"){loginView();}else if(event==="SIGNED_IN"&&session){boot();}});
+
+navMarkup = function(){const items=profile && profile.role==="staff"?navItems.filter(x=>x[0]==="dashboard"||x[0]==="orders"):navItems;return items.map(x=>'<button class="nav-btn '+(page===x[0]?'active':'')+'" data-page="'+x[0]+'"><span>'+x[1]+'</span><span>'+x[2]+'</span></button>').join('');};
+boot = async function(){
+ const result=await supabase.auth.getSession(); const session=result.data.session;
+ if(!session){loginView();return;}
+ currentUser=session.user;
+ const p=await supabase.from("profiles").select("id,display_name,phone,role,active").eq("id",currentUser.id).single();
+ if(p.error||!p.data||!p.data.active||!["owner","admin","staff"].includes(p.data.role)){await supabase.auth.signOut();loginView("This account is not active for this workspace.");return;}
+ profile=p.data;
+ const expected=profile.role==="staff"?"staff":"admin";
+ const path=location.pathname;
+ const actual=path.endsWith("/staff.html")?"staff":path.endsWith("/admin.html")?"admin":"home";
+ const target=expected==="staff"?"./staff.html":"./admin.html";
+ if(actual!==expected){location.replace(target);return;}
+ shell();await renderPage();
+};
+
 boot().catch(e=>loginView(e.message));
 if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
