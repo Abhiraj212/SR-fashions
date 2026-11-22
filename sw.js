@@ -1,4 +1,4 @@
-const CACHE = "sr-fashions-shell-v2";
+const CACHE = "sr-fashions-shell-v3";
 const FILES = ["./", "./index.html", "./styles.css", "./app.js", "./config.js", "./manifest.webmanifest", "./admin.html", "./staff.html"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)));
