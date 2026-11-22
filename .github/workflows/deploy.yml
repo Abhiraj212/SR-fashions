@@ -21,10 +21,16 @@ jobs:
         uses: actions/checkout@v6
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
+      - name: Assemble static site
+        run: |
+          mkdir -p _site
+          cp index.html app.js config.js styles.css manifest.webmanifest sw.js _site/
+          cp -R public _site/public
+          touch _site/.nojekyll
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
         with:
-          path: .
+          path: ./_site
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
