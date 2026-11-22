@@ -7,7 +7,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 const $ = (s, root=document) => root.querySelector(s);
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money = n => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(Number(n||0));
-let currentUser=null, profile=null, page="dashboard", cache={customers:[],orders:[],payments:[],expenses:[],measurements:[],staff:[]};
+let currentUser=null, profile=null, page="dashboard", cache={customers:[],orders:[],payments:[],expenses:[],measurements:[],staff:[],orderItems:[]};
 
 function toast(message){const el=document.createElement("div");el.className="toast";el.textContent=message;document.body.append(el);setTimeout(()=>el.remove(),3000);}
 function loginView(message=""){
@@ -47,12 +47,12 @@ async function loadData(){
     supabase.from("expenses").select("*").order("expense_date",{ascending:false}).limit(200),
     supabase.from("profiles").select("id,display_name,phone,role,active,created_at").in("role",["staff","admin","owner"]).order("created_at")
   );
-  const r=await Promise.all(jobs);
+  jobs.push(supabase.from("order_items").select("id,order_id,garment_type,description,measurement_id").limit(500));\n  const r=await Promise.all(jobs);
   for(const x of r){if(x.error) throw x.error;}
   cache.customers=r[0].data||[];cache.orders=r[1].data||[];cache.measurements=r[2].data||[];
   cache.payments=profile.role==="staff"?[]:(r[3].data||[]);
   cache.expenses=profile.role==="staff"?[]:(r[4].data||[]);
-  cache.staff=profile.role==="staff"?[]:(r[5].data||[]);
+  cache.staff=profile.role==="staff"?[]:(r[5].data||[]);\n  cache.orderItems=(profile.role==="staff"?r[3].data:r[6].data)||[];
 }
 async function renderPage(){
   const main=$("#main"); if(!main)return;
