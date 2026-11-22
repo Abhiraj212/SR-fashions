@@ -90,3 +90,60 @@ create index staff_payments_user_idx on public.staff_payments(staff_user_id);
 create index staff_payments_recorded_by_idx on public.staff_payments(recorded_by);
 create index expenses_recorded_by_idx on public.expenses(recorded_by);
 create index business_settings_updated_by_idx on public.business_settings(updated_by);
+
+
+-- Staff access is scoped to work assigned directly to their profile.
+drop policy if exists orders_select on public.orders;
+create policy orders_select on public.orders for select to authenticated
+using ((select private.has_any_role(array['owner','admin']))
+  or (assigned_staff_id = (select auth.uid()) and (select private.has_any_role(array['staff']))));
+
+drop policy if exists customers_select on public.customers;
+create policy customers_select on public.customers for select to authenticated
+using ((select private.has_any_role(array['owner','admin']))
+  or ((select private.has_any_role(array['staff'])) and exists (
+    select 1 from public.orders o where o.customer_id = customers.id and o.assigned_staff_id = (select auth.uid())
+  )));
+
+drop policy if exists measurements_select on public.measurements;
+create policy measurements_select on public.measurements for select to authenticated
+using ((select private.has_any_role(array['owner','admin']))
+  or ((select private.has_any_role(array['staff'])) and exists (
+    select 1 from public.order_items oi
+    join public.orders o on o.id = oi.order_id
+    where oi.measurement_id = measurements.id and o.assigned_staff_id = (select auth.uid())
+  )));
+
+drop policy if exists order_items_select on public.order_items;
+create policy order_items_select on public.order_items for select to authenticated
+using ((select private.has_any_role(array['owner','admin']))
+  or ((select private.has_any_role(array['staff'])) and exists (
+    select 1 from public.orders o where o.id = order_items.order_id and o.assigned_staff_id = (select auth.uid())
+  )));
+
+drop policy if exists order_status_history_select on public.order_status_history;
+drop policy if exists order_history_select on public.order_status_history;
+create policy order_status_history_select on public.order_status_history for select to authenticated
+using ((select private.has_any_role(array['owner','admin']))
+  or ((select private.has_any_role(array['staff'])) and exists (
+    select 1 from public.orders o where o.id = order_status_history.order_id and o.assigned_staff_id = (select auth.uid())
+  )));
+
+create or replace function private.validate_order_measurement_customer()
+returns trigger language plpgsql set search_path=''
+as $$
+begin
+  if new.measurement_id is not null and not exists (
+    select 1 from public.measurements m
+    join public.orders o on o.id = new.order_id
+    where m.id = new.measurement_id and m.customer_id = o.customer_id
+  ) then
+    raise exception 'Selected measurement must belong to the order customer';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists validate_order_measurement_customer on public.order_items;
+create trigger validate_order_measurement_customer
+before insert or update of order_id, measurement_id on public.order_items
+for each row execute function private.validate_order_measurement_customer();
